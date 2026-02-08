@@ -17,6 +17,7 @@ from homeassistant.const import (
 CONF_BAUDRATE = "baudrate"
 CONF_BYTESIZE = "bytesize"
 CONF_CLIMATES = "climates"
+CONF_NUMBERS = "numbers"
 CONF_BRIGHTNESS_REGISTER = "brightness_address"
 CONF_COLOR_TEMP_REGISTER = "color_temp_address"
 CONF_CURRENT_TEMP_OFFSET = "current_temp_offset"
@@ -173,6 +174,7 @@ PLATFORMS = (
     (Platform.COVER, CONF_COVERS),
     (Platform.LIGHT, CONF_LIGHTS),
     (Platform.FAN, CONF_FANS),
+    (Platform.NUMBER, CONF_NUMBERS),
     (Platform.SENSOR, CONF_SENSORS),
     (Platform.SWITCH, CONF_SWITCHES),
 )

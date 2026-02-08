@@ -12,6 +12,9 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.components.cover import (
     DEVICE_CLASSES_SCHEMA as COVER_DEVICE_CLASSES_SCHEMA,
 )
+from homeassistant.components.number import (
+    DEVICE_CLASSES_SCHEMA as NUMBER_DEVICE_CLASSES_SCHEMA,
+)
 from homeassistant.components.sensor import (
     CONF_STATE_CLASS,
     DEVICE_CLASSES_SCHEMA as SENSOR_DEVICE_CLASSES_SCHEMA,
@@ -32,6 +35,7 @@ from homeassistant.const import (
     CONF_HOST,
     CONF_LIGHTS,
     CONF_METHOD,
+    CONF_MODE,
     CONF_NAME,
     CONF_OFFSET,
     CONF_PORT,
@@ -113,6 +117,7 @@ from .const import (
     CONF_MIN_VALUE,
     CONF_MSG_WAIT,
     CONF_NAN_VALUE,
+    CONF_NUMBERS,
     CONF_PARITY,
     CONF_PRECISION,
     CONF_SCALE,
@@ -449,6 +454,19 @@ LIGHT_SCHEMA = BASE_SWITCH_SCHEMA.extend(
 
 FAN_SCHEMA = BASE_SWITCH_SCHEMA.extend({})
 
+NUMBER_SCHEMA = vol.All(
+    BASE_STRUCT_SCHEMA.extend(
+        {
+            vol.Optional(CONF_DEVICE_CLASS): NUMBER_DEVICE_CLASSES_SCHEMA,
+            vol.Optional(CONF_MODE, default="auto"): vol.In(["auto", "box", "slider"]),
+            vol.Optional(CONF_MIN_VALUE): vol.Coerce(float),
+            vol.Optional(CONF_MAX_VALUE): vol.Coerce(float),
+            vol.Optional(CONF_STEP): vol.Coerce(float),
+            vol.Optional(CONF_PRECISION): cv.positive_int,
+        }
+    ),
+)
+
 SENSOR_SCHEMA = vol.All(
     BASE_STRUCT_SCHEMA.extend(
         {
@@ -495,6 +513,9 @@ MODBUS_SCHEMA = vol.Schema(
         ),
         vol.Optional(CONF_COVERS): vol.All(cv.ensure_list, [COVERS_SCHEMA]),
         vol.Optional(CONF_LIGHTS): vol.All(cv.ensure_list, [LIGHT_SCHEMA]),
+        vol.Optional(CONF_NUMBERS): vol.All(
+            cv.ensure_list, [vol.All(NUMBER_SCHEMA, struct_validator)]
+        ),
         vol.Optional(CONF_SENSORS): vol.All(
             cv.ensure_list, [vol.All(SENSOR_SCHEMA, struct_validator)]
         ),
