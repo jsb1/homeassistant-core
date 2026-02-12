@@ -12,6 +12,8 @@ from homeassistant.components.number import (
 )
 from homeassistant.const import (
     CONF_DEVICE_CLASS,
+    CONF_MAX_VALUE,
+    CONF_MIN_VALUE,
     CONF_NAME,
     CONF_OFFSET,
     CONF_SENSORS,
@@ -33,6 +35,10 @@ from .const import (
     CALL_TYPE_DISCRETE,
     CALL_TYPE_REGISTER_HOLDING,
     CALL_TYPE_REGISTER_INPUT,
+    CALL_TYPE_WRITE_COIL,
+    CALL_TYPE_WRITE_COILS,
+    CALL_TYPE_WRITE_REGISTER,
+    CALL_TYPE_WRITE_REGISTERS,
     CALL_TYPE_X_COILS,
     CALL_TYPE_X_REGISTER_HOLDINGS,
     CONF_SCALE,
@@ -45,6 +51,15 @@ from .entity import ModbusStructEntity
 from .modbus import ModbusHub
 
 PARALLEL_UPDATES = 1
+
+WRITE_TYPE_MAP = {
+    CALL_TYPE_REGISTER_INPUT: None,  # Read-only
+    CALL_TYPE_DISCRETE: None,  # Read-only
+    CALL_TYPE_COIL: CALL_TYPE_WRITE_COIL,
+    CALL_TYPE_X_COILS: CALL_TYPE_WRITE_COILS,
+    CALL_TYPE_REGISTER_HOLDING: CALL_TYPE_WRITE_REGISTER,
+    CALL_TYPE_X_REGISTER_HOLDINGS: CALL_TYPE_WRITE_REGISTERS,
+}
 
 
 async def async_setup_platform(
@@ -137,30 +152,51 @@ class ModbusRegisterNumber(ModbusStructEntity, RestoreNumber, NumberEntity):
                 self._coordinator.async_set_updated_data(None)
             self.async_write_ha_state()
             return
+
         self._attr_available = True
         result = self.unpack_structure_result(
             raw_result.registers, self._scale, self._offset
         )
-        if self._coordinator:
-            result_array: list[float | None] = []
-            if result:
-                for i in result.split(","):
-                    if i != "None":
-                        result_array.append(
-                            float(i) if not self._value_is_int else int(i)
-                        )
-                    else:
-                        result_array.append(None)
 
-                self._attr_native_value = result_array[0]
-                self._coordinator.async_set_updated_data(result_array)
-            else:
-                self._attr_native_value = None
-                result_array = (self._slave_count + 1) * [None]
-                self._coordinator.async_set_updated_data(result_array)
+        if self._coordinator:
+            result_array = self._parse_result_array(result)
+            self._attr_native_value = result_array[0] if result_array else None
+            self._coordinator.async_set_updated_data(result_array)
         else:
             self._attr_native_value = result
         self.async_write_ha_state()
+
+    def _parse_result_array(self, result: str | None) -> list[float | None]:
+        """Parse comma-separated result string into array of values.
+
+        Args:
+            result: Comma-separated string of values or None.
+
+        Returns:
+            List of float or int values, or None if result is None.
+        """
+        if not result:
+            return (self._slave_count + 1) * [None]
+
+        result_array: list[float | None] = []
+        for item in result.split(","):
+            if item == "None":
+                result_array.append(None)
+                continue
+
+            try:
+                value = float(item) if not self._value_is_int else int(item)
+                result_array.append(value)
+            except (ValueError, TypeError) as err:
+                _LOGGER.debug(
+                    "Failed to parse value '%s' as %s: %s",
+                    item,
+                    "integer" if self._value_is_int else "float",
+                    err,
+                )
+                result_array.append(None)
+
+        return result_array
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new value (write to Modbus)."""
@@ -173,27 +209,9 @@ class ModbusRegisterNumber(ModbusStructEntity, RestoreNumber, NumberEntity):
                 f"Value {value} is above maximum {self._max_value}"
             )
 
-        write_type = self._input_type
-        if write_type == CALL_TYPE_REGISTER_INPUT:
-            _LOGGER.error(
-                "Cannot write to input registers (read-only)"
-            )
+        write_type = WRITE_TYPE_MAP.get(self._input_type)
+        if write_type is None:
             return
-
-        if write_type == CALL_TYPE_DISCRETE:
-            _LOGGER.error(
-                "Cannot write to discrete input registers (read-only)"
-            )
-            return
-
-        if write_type == CALL_TYPE_COIL:
-            write_type = CALL_TYPE_WRITE_COIL
-        elif write_type == CALL_TYPE_X_COILS:
-            write_type = CALL_TYPE_WRITE_COILS
-        elif write_type == CALL_TYPE_REGISTER_HOLDING:
-            write_type = CALL_TYPE_WRITE_REGISTER
-        elif write_type == CALL_TYPE_X_REGISTER_HOLDINGS:
-            write_type = CALL_TYPE_WRITE_REGISTERS
 
         result = await self._hub.async_pb_call(
             self._device_address, self._address, value, write_type
@@ -271,27 +289,9 @@ class SlaveNumber(
                 f"Value {value} is above maximum {self._max_value}"
             )
 
-        write_type = self._input_type
-        if write_type == CALL_TYPE_REGISTER_INPUT:
-            _LOGGER.error(
-                "Cannot write to input registers (read-only)"
-            )
+        write_type = WRITE_TYPE_MAP.get(self._input_type)
+        if write_type is None:
             return
-
-        if write_type == CALL_TYPE_DISCRETE:
-            _LOGGER.error(
-                "Cannot write to discrete input registers (read-only)"
-            )
-            return
-
-        if write_type == CALL_TYPE_COIL:
-            write_type = CALL_TYPE_WRITE_COIL
-        elif write_type == CALL_TYPE_X_COILS:
-            write_type = CALL_TYPE_WRITE_COILS
-        elif write_type == CALL_TYPE_REGISTER_HOLDING:
-            write_type = CALL_TYPE_WRITE_REGISTER
-        elif write_type == CALL_TYPE_X_REGISTER_HOLDINGS:
-            write_type = CALL_TYPE_WRITE_REGISTERS
 
         result = await self._hub.async_pb_call(
             self._device_address, self._address, value, write_type

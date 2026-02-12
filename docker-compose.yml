@@ -1,0 +1,24 @@
+services:
+  ipex-llm:
+    image: intelanalytics/ipex-llm-inference-cpp-xpu:latest
+    container_name: ipex-llm
+    restart: always
+    network_mode: bridge
+    devices:
+      - /dev/dri
+    ports:
+      - "11434:11434"
+    volumes:
+      - ~/.ollama/models:/root/.ollama/models
+    environment:
+      - PATH=/llm/ollama:$PATH
+      - OLLAMA_HOST=0.0.0.0
+      - no_proxy=localhost,127.0.0.1
+      - ZES_ENABLE_SYSMAN=1
+      - OLLAMA_INTEL_GPU=true
+      - ONEAPI_DEVICE_SELECTOR=level_zero:0
+      - DEVICE=Arc
+    shm_size: "16g"
+    mem_limit: "32g"
+    command: >
+      bash -c "cd /llm/scripts/ && source ipex-llm-init --gpu --device Arc && bash start-ollama.sh && tail -f /llm/ollama/ollama.log"
