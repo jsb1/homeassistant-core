@@ -4,16 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.number import (
-    CONF_MODE,
-    CONF_STEP,
-    NumberEntity,
-    RestoreNumber,
-)
+from homeassistant.components.modbus.const import CONF_STEP
+from homeassistant.components.number import NumberEntity, RestoreNumber
 from homeassistant.const import (
     CONF_DEVICE_CLASS,
-    CONF_MAX_VALUE,
-    CONF_MIN_VALUE,
+    CONF_MAXIMUM,
+    CONF_MINIMUM,
+    CONF_MODE,
     CONF_NAME,
     CONF_OFFSET,
     CONF_SENSORS,
@@ -108,8 +105,8 @@ class ModbusRegisterNumber(ModbusStructEntity, RestoreNumber, NumberEntity):
         self._attr_native_unit_of_measurement = entry.get(CONF_UNIT_OF_MEASUREMENT)
         self._attr_device_class = entry.get(CONF_DEVICE_CLASS)
         self._attr_mode = entry.get(CONF_MODE, "auto")
-        self._attr_native_min_value = entry.get(CONF_MIN_VALUE)
-        self._attr_native_max_value = entry.get(CONF_MAX_VALUE)
+        self._attr_native_min_value = entry.get(CONF_MINIMUM)
+        self._attr_native_max_value = entry.get(CONF_MAXIMUM)
         self._attr_native_step = entry.get(CONF_STEP)
         if self._precision > 0 or self._scale != int(self._scale):
             self._value_is_int = False
@@ -201,13 +198,9 @@ class ModbusRegisterNumber(ModbusStructEntity, RestoreNumber, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Set new value (write to Modbus)."""
         if self._min_value is not None and value < self._min_value:
-            raise ValueError(
-                f"Value {value} is below minimum {self._min_value}"
-            )
+            raise ValueError(f"Value {value} is below minimum {self._min_value}")
         if self._max_value is not None and value > self._max_value:
-            raise ValueError(
-                f"Value {value} is above maximum {self._max_value}"
-            )
+            raise ValueError(f"Value {value} is above maximum {self._max_value}")
 
         write_type = WRITE_TYPE_MAP.get(self._input_type)
         if write_type is None:
@@ -254,8 +247,8 @@ class SlaveNumber(
         self._attr_native_unit_of_measurement = entry.get(CONF_UNIT_OF_MEASUREMENT)
         self._attr_device_class = entry.get(CONF_DEVICE_CLASS)
         self._attr_mode = entry.get(CONF_MODE, "auto")
-        self._attr_native_min_value = entry.get(CONF_MIN_VALUE)
-        self._attr_native_max_value = entry.get(CONF_MAX_VALUE)
+        self._attr_native_min_value = entry.get(CONF_MINIMUM)
+        self._attr_native_max_value = entry.get(CONF_MAXIMUM)
         self._attr_native_step = entry.get(CONF_STEP)
         self._attr_available = False
         super().__init__(coordinator)
@@ -281,13 +274,9 @@ class SlaveNumber(
     async def async_set_native_value(self, value: float) -> None:
         """Set new value (write to Modbus)."""
         if self._min_value is not None and value < self._min_value:
-            raise ValueError(
-                f"Value {value} is below minimum {self._min_value}"
-            )
+            raise ValueError(f"Value {value} is below minimum {self._min_value}")
         if self._max_value is not None and value > self._max_value:
-            raise ValueError(
-                f"Value {value} is above maximum {self._max_value}"
-            )
+            raise ValueError(f"Value {value} is above maximum {self._max_value}")
 
         write_type = WRITE_TYPE_MAP.get(self._input_type)
         if write_type is None:
